@@ -176,6 +176,13 @@ def send_test_line():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    body = request.get_json()
+    print(f"Webhook received: {json.dumps(body, ensure_ascii=False)}")
+    if body and 'events' in body:
+        for event in body['events']:
+            source = event.get('source', {})
+            if source.get('type') == 'group':
+                print(f"GROUP ID: {source.get('groupId')}")
     return jsonify({'ok': True})
 
 if __name__ == '__main__':
