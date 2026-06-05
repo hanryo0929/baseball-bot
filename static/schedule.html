@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日程調整 - Baseball-Plan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+  :root {
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --bg: #0a0f1e;
+    --card: #131929;
+    --border: #1e2d45;
+    --text: #e2e8f0;
+    --sub: #64748b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header .logo { font-size: 1.6rem; }
+  header h1 { font-size: 1.1rem; font-weight: 900; }
+  header p { font-size: 0.75rem; color: var(--sub); }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    position: sticky; top: 65px; z-index: 99;
+  }
+  .tab {
+    flex: 1; padding: 14px; text-align: center;
+    font-size: 0.85rem; font-weight: 700; color: var(--sub);
+    cursor: pointer; border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  .section { display: none; padding: 20px 16px; max-width: 600px; margin: 0 auto; }
+  .section.active { display: block; }
+
+  /* 投票フォーム */
+  .name-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .name-input label { font-size: 0.8rem; color: var(--sub); display: block; margin-bottom: 8px; }
+  .name-input input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text);
+    font-family: inherit; font-size: 1rem; outline: none;
+  }
+  .name-input input:focus { border-color: var(--green); }
+
+  .date-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .date-info { flex: 1; }
+  .date-main { font-size: 1rem; font-weight: 700; }
+  .date-sub { font-size: 0.75rem; color: var(--sub); margin-top: 2px; }
+  .holiday-badge {
+    font-size: 0.65rem; background: #7c3aed33; color: #a78bfa;
+    border-radius: 4px; padding: 2px 6px; margin-left: 6px;
+  }
+
+  .vote-btns { display: flex; gap: 8px; }
+  .vote-btn {
+    width: 44px; height: 44px; border-radius: 10px;
+    border: 2px solid var(--border); background: transparent;
+    font-size: 1.2rem; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vote-btn:hover { transform: scale(1.1); }
+  .vote-btn.selected-ok { background: #16a34a33; border-color: var(--green); }
+  .vote-btn.selected-maybe { background: #d9770633; border-color: var(--yellow); }
+  .vote-btn.selected-ng { background: #dc262633; border-color: var(--red); }
+
+  .comment-area {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 8px;
+    margin-bottom: 20px;
+  }
+  .comment-area label { font-size: 0.8rem; color: var(--sub); display: block; margin-bottom: 8px; }
+  .comment-area textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text);
+    font-family: inherit; font-size: 0.9rem; outline: none; resize: vertical; min-height: 80px;
+  }
+  .comment-area textarea:focus { border-color: var(--green); }
+
+  .submit-btn {
+    width: 100%; padding: 16px; background: var(--green); color: #0a0f1e;
+    border: none; border-radius: 12px; font-weight: 900; font-size: 1rem;
+    cursor: pointer; transition: opacity 0.2s, transform 0.2s;
+    font-family: inherit;
+  }
+  .submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .submit-btn:active { transform: translateY(0); }
+
+  /* 集計タブ */
+  .summary-date {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .summary-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .summary-date-label { font-size: 1rem; font-weight: 700; }
+  .count-badges { display: flex; gap: 8px; }
+  .badge {
+    font-size: 0.8rem; font-weight: 700; padding: 4px 10px;
+    border-radius: 20px; display: flex; align-items: center; gap: 4px;
+  }
+  .badge-ok { background: #16a34a33; color: var(--green); }
+  .badge-maybe { background: #d9770633; color: var(--yellow); }
+  .badge-ng { background: #dc262633; color: var(--red); }
+
+  .bar-wrap { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; display: flex; }
+  .bar-ok { background: var(--green); height: 100%; transition: width 0.5s; }
+  .bar-maybe { background: var(--yellow); height: 100%; transition: width 0.5s; }
+  .bar-ng { background: var(--red); height: 100%; transition: width 0.5s; }
+
+  .voters { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .voter-chip {
+    font-size: 0.75rem; padding: 3px 10px; border-radius: 20px;
+    background: var(--bg); border: 1px solid var(--border);
+  }
+  .voter-chip.ok { border-color: var(--green); color: var(--green); }
+  .voter-chip.maybe { border-color: var(--yellow); color: var(--yellow); }
+  .voter-chip.ng { border-color: var(--red); color: var(--red); }
+
+  .comment-list { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .comment-item { font-size: 0.8rem; color: var(--sub); margin-bottom: 4px; }
+  .comment-item strong { color: var(--text); }
+
+  .loading { text-align: center; padding: 60px 20px; color: var(--sub); }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--green); color: #0a0f1e; padding: 12px 24px;
+    border-radius: 24px; font-weight: 700; transition: transform 0.3s; z-index: 999;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚾</div>
+  <div>
+    <h1 id="header-title">日程調整</h1>
+    <p id="header-sub">読み込み中...</p>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('vote')">📝 回答する</div>
+  <div class="tab" onclick="switchTab('summary')">📊 集計を見る</div>
+</div>
+
+<div id="vote-section" class="section active">
+  <div class="loading" id="vote-loading">読み込み中...</div>
+</div>
+
+<div id="summary-section" class="section">
+  <div class="loading" id="summary-loading">読み込み中...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const monthKey = location.pathname.split('/').pop();
+const DAYS_JP = ['日','月','火','水','木','金','土'];
+let scheduleData = null;
+let myVotes = {};
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'vote') || (i === 1 && tab === 'summary'));
+  });
+  document.getElementById('vote-section').classList.toggle('active', tab === 'vote');
+  document.getElementById('summary-section').classList.toggle('active', tab === 'summary');
+  if (tab === 'summary') renderSummary();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const dow = DAYS_JP[d.getDay()];
+  return { short: `${m}/${day}(${dow})`, full: `${m}月${day}日（${dow}）`, dow, isHoliday: d.getDay() === 0 };
+}
+
+async function loadSchedule() {
+  const res = await fetch(`/api/schedule/${monthKey}`);
+  if (!res.ok) {
+    document.getElementById('vote-loading').textContent = 'このページは見つかりませんでした。';
+    return;
+  }
+  scheduleData = await res.json();
+  const title = `${scheduleData.year}年${scheduleData.month}月 日程調整`;
+  document.getElementById('header-title').textContent = title;
+  document.getElementById('header-sub').textContent = `土日祝 ${scheduleData.days.length}日間`;
+  document.title = title;
+  renderVoteForm();
+}
+
+function renderVoteForm() {
+  const el = document.getElementById('vote-section');
+  let html = `
+    <div class="name-input">
+      <label>👤 あなたの名前</label>
+      <input type="text" id="my-name" placeholder="例：田中" />
+    </div>
+  `;
+
+  scheduleData.days.forEach(dateStr => {
+    const f = formatDate(dateStr);
+    const isHoliday = f.isHoliday;
+    html += `
+      <div class="date-card">
+        <div class="date-info">
+          <div class="date-main">
+            ${f.full}
+            ${isHoliday ? '<span class="holiday-badge">祝</span>' : ''}
+          </div>
+        </div>
+        <div class="vote-btns">
+          <button class="vote-btn" data-date="${dateStr}" data-val="ok" onclick="selectVote('${dateStr}','ok',this)">⭕</button>
+          <button class="vote-btn" data-date="${dateStr}" data-val="maybe" onclick="selectVote('${dateStr}','maybe',this)">△</button>
+          <button class="vote-btn" data-date="${dateStr}" data-val="ng" onclick="selectVote('${dateStr}','ng',this)">❌</button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    <div class="comment-area">
+      <label>💬 コメント（任意）</label>
+      <textarea id="my-comment" placeholder="「この日は少し遅れます」など"></textarea>
+    </div>
+    <button class="submit-btn" onclick="submitVote()">✅ 回答を送信する</button>
+    <div style="height:40px"></div>
+  `;
+  el.innerHTML = html;
+}
+
+function selectVote(dateStr, val, btn) {
+  myVotes[dateStr] = val;
+  const parent = btn.closest('.vote-btns');
+  parent.querySelectorAll('.vote-btn').forEach(b => {
+    b.classList.remove('selected-ok','selected-maybe','selected-ng');
+  });
+  btn.classList.add(`selected-${val}`);
+}
+
+async function submitVote() {
+  const name = document.getElementById('my-name').value.trim();
+  if (!name) { showToast('⚠️ 名前を入力してください'); return; }
+  if (Object.keys(myVotes).length === 0) { showToast('⚠️ 少なくとも1日を選んでください'); return; }
+  const comment = document.getElementById('my-comment').value.trim();
+  const res = await fetch(`/api/schedule/${monthKey}/vote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, votes: myVotes, comment })
+  });
+  if (res.ok) {
+    showToast('✅ 送信完了！ありがとう！');
+    scheduleData = await (await fetch(`/api/schedule/${monthKey}`)).json();
+  }
+}
+
+function renderSummary() {
+  if (!scheduleData) return;
+  const el = document.getElementById('summary-section');
+  const voters = Object.entries(scheduleData.votes);
+  const total = voters.length;
+
+  if (total === 0) {
+    el.innerHTML = '<div class="loading">まだ回答がありません</div>';
+    return;
+  }
+
+  let html = `<p style="font-size:0.8rem;color:var(--sub);margin-bottom:16px">回答者：${total}人</p>`;
+
+  scheduleData.days.forEach(dateStr => {
+    const f = formatDate(dateStr);
+    let okList = [], maybeList = [], ngList = [];
+    voters.forEach(([name, data]) => {
+      const v = data.votes[dateStr];
+      if (v === 'ok') okList.push(name);
+      else if (v === 'maybe') maybeList.push(name);
+      else if (v === 'ng') ngList.push(name);
+    });
+    const okPct = total ? (okList.length / total * 100).toFixed(0) : 0;
+    const maybePct = total ? (maybeList.length / total * 100).toFixed(0) : 0;
+    const ngPct = total ? (ngList.length / total * 100).toFixed(0) : 0;
+
+    const comments = voters
+      .filter(([, d]) => d.comment && d.votes[dateStr])
+      .map(([name, d]) => `<div class="comment-item"><strong>${name}</strong>：${d.comment}</div>`);
+
+    html += `
+      <div class="summary-date">
+        <div class="summary-header">
+          <div class="summary-date-label">${f.full}</div>
+          <div class="count-badges">
+            <span class="badge badge-ok">⭕ ${okList.length}</span>
+            <span class="badge badge-maybe">△ ${maybeList.length}</span>
+            <span class="badge badge-ng">❌ ${ngList.length}</span>
+          </div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-ok" style="width:${okPct}%"></div>
+          <div class="bar-maybe" style="width:${maybePct}%"></div>
+          <div class="bar-ng" style="width:${ngPct}%"></div>
+        </div>
+        <div class="voters">
+          ${okList.map(n => `<span class="voter-chip ok">⭕ ${n}</span>`).join('')}
+          ${maybeList.map(n => `<span class="voter-chip maybe">△ ${n}</span>`).join('')}
+          ${ngList.map(n => `<span class="voter-chip ng">❌ ${n}</span>`).join('')}
+        </div>
+        ${comments.length ? `<div class="comment-list">${comments.join('')}</div>` : ''}
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
+}
+
+loadSchedule();
+</script>
+</body>
+</html>

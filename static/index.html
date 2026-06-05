@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baseball-Plan 管理画面</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans JP', sans-serif; background: #0a0f1e; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .container { text-align: center; padding: 40px 20px; }
+  .logo { font-size: 3rem; margin-bottom: 8px; }
+  h1 { font-size: 1.8rem; font-weight: 900; color: #4ade80; margin-bottom: 8px; }
+  p { color: #94a3b8; margin-bottom: 40px; }
+  .btn { display: inline-block; background: #4ade80; color: #0a0f1e; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 1rem; text-decoration: none; cursor: pointer; border: none; margin: 8px; transition: transform 0.2s, opacity 0.2s; }
+  .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+  .btn-outline { background: transparent; border: 2px solid #4ade80; color: #4ade80; }
+  #result { margin-top: 20px; padding: 16px; background: #1e293b; border-radius: 12px; display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">⚾</div>
+  <h1>Baseball-Plan Bot</h1>
+  <p>亀岡太郎グループ 日程調整自動化システム</p>
+  <button class="btn" onclick="createTest()">📅 今月のテスト日程を作成</button>
+  <button class="btn btn-outline" onclick="sendTestLine()">📨 LINEテスト送信</button>
+  <div id="result"></div>
+</div>
+<script>
+async function createTest() {
+  const res = await fetch('/api/create-test', { method: 'POST' });
+  const data = await res.json();
+  const el = document.getElementById('result');
+  el.style.display = 'block';
+  el.innerHTML = `✅ 作成完了！<br><a href="${data.url}" style="color:#4ade80">${data.url}</a>`;
+}
+async function sendTestLine() {
+  await fetch('/api/send-test-line', { method: 'POST' });
+  const el = document.getElementById('result');
+  el.style.display = 'block';
+  el.innerHTML = '✅ LINEにテストメッセージを送信しました！';
+}
+</script>
+</body>
+</html>
