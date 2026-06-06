@@ -83,12 +83,12 @@ def create_schedule_for_next_month():
     save_data(data)
 
     url = f"{BASE_URL}/schedule/{month_key}"
-    month_name = f"{next_year}年{next_month}月"
+    month_name = f"{next_month}月"
     message = (
         f"🗓 {month_name}の日程調整を開始します！\n\n"
-        f"土日祝の都合を教えてください⚾\n\n"
+        f"土日祝の都合を教えて⚾\n\n"
         f"📝 回答はこちら👇\n{url}\n\n"
-        f"締め切り：{next_year}年{next_month}月10日"
+        f"締め切り：今月の10日まで"
     )
     send_line_message(message)
     print(f"Created schedule for {month_key}")
@@ -99,7 +99,7 @@ def send_reminder():
     month_key = f"{today.year}-{today.month:02d}"
     url = f"{BASE_URL}/schedule/{month_key}"
     message = (
-        f"⚠️ 締め切りは明日なので投票してない人はよろしく！\n\n"
+        f"⚠️ 締め切りは明日なので投票してない人は忘れんうちによろしく！\n\n"
         f"📝 回答はこちら👇\n{url}"
     )
     send_line_message(message)
@@ -174,15 +174,20 @@ def send_test_line():
     send_line_message("🤖 Botのテストメッセージです！正常に動作しています✅")
     return jsonify({'ok': True})
 
+@app.route('/api/test-schedule-message', methods=['POST'])
+def test_schedule_message():
+    """テスト用：毎月5日の日程調整メッセージを今すぐ送信"""
+    create_schedule_for_next_month()
+    return jsonify({'ok': True})
+
+@app.route('/api/test-reminder-message', methods=['POST'])
+def test_reminder_message():
+    """テスト用：毎月9日の催促メッセージを今すぐ送信"""
+    send_reminder()
+    return jsonify({'ok': True})
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    body = request.get_json()
-    print(f"Webhook received: {json.dumps(body, ensure_ascii=False)}")
-    if body and 'events' in body:
-        for event in body['events']:
-            source = event.get('source', {})
-            if source.get('type') == 'group':
-                print(f"GROUP ID: {source.get('groupId')}")
     return jsonify({'ok': True})
 
 if __name__ == '__main__':
