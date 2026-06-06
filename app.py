@@ -188,6 +188,14 @@ def test_reminder_message():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    body = request.get_json()
+    print(f"Webhook received: {json.dumps(body, ensure_ascii=False)}")
+    if body and 'events' in body:
+        for event in body['events']:
+            source = event.get('source', {})
+            group_id = source.get('groupId')
+            if group_id:
+                print(f"GROUP ID: {group_id}")
     return jsonify({'ok': True})
 
 if __name__ == '__main__':
