@@ -23,8 +23,19 @@
   <div class="logo">⚾</div>
   <h1>Baseball-Plan Bot</h1>
   <p>亀岡太郎グループ 日程調整自動化システム</p>
-  <button class="btn" onclick="createTest()">📅 今月のテスト日程を作成</button>
-  <button class="btn btn-outline" onclick="sendTestLine()">📨 LINEテスト送信</button>
+  <div style="margin-bottom:24px">
+    <div style="font-size:0.75rem;color:#64748b;margin-bottom:12px;letter-spacing:0.05em">── 動作確認 ──</div>
+    <button class="btn btn-outline" onclick="sendTestLine()">📨 疎通テスト送信</button>
+  </div>
+  <div style="margin-bottom:24px">
+    <div style="font-size:0.75rem;color:#64748b;margin-bottom:12px;letter-spacing:0.05em">── 自動送信のテスト ──</div>
+    <button class="btn" onclick="testScheduleMessage()">🗓 毎月5日メッセージを今すぐ送信</button>
+    <button class="btn" style="background:#fbbf24;color:#0a0f1e" onclick="testReminderMessage()">⚠️ 催促メッセージを今すぐ送信</button>
+  </div>
+  <div style="margin-bottom:24px">
+    <div style="font-size:0.75rem;color:#64748b;margin-bottom:12px;letter-spacing:0.05em">── 日程管理 ──</div>
+    <button class="btn btn-outline" onclick="createTest()">📅 今月の日程ページを作成</button>
+  </div>
   <div id="result"></div>
 </div>
 <script>
@@ -39,7 +50,21 @@ async function sendTestLine() {
   await fetch('/api/send-test-line', { method: 'POST' });
   const el = document.getElementById('result');
   el.style.display = 'block';
-  el.innerHTML = '✅ LINEにテストメッセージを送信しました！';
+  el.innerHTML = '✅ LINEに疎通テストメッセージを送信しました！';
+}
+async function testScheduleMessage() {
+  const el = document.getElementById('result');
+  el.style.display = 'block';
+  el.innerHTML = '送信中...';
+  await fetch('/api/test-schedule-message', { method: 'POST' });
+  el.innerHTML = '✅ 毎月5日の日程調整メッセージをLINEに送信しました！';
+}
+async function testReminderMessage() {
+  const el = document.getElementById('result');
+  el.style.display = 'block';
+  el.innerHTML = '送信中...';
+  await fetch('/api/test-reminder-message', { method: 'POST' });
+  el.innerHTML = '✅ 催促メッセージをLINEに送信しました！';
 }
 </script>
 </body>
