@@ -83,12 +83,12 @@ def create_schedule_for_next_month():
     save_data(data)
 
     url = f"{BASE_URL}/schedule/{month_key}"
-    month_name = f"{next_month}月"
+    month_name = f"{next_year}年{next_month}月"
     message = (
         f"🗓 {month_name}の日程調整を開始します！\n\n"
-        f"土日祝の都合を教えて⚾\n\n"
+        f"土日祝の都合を教えてください⚾\n\n"
         f"📝 回答はこちら👇\n{url}\n\n"
-        f"締め切り：今月の10日まで"
+        f"締め切り：{next_year}年{next_month}月10日"
     )
     send_line_message(message)
     print(f"Created schedule for {month_key}")
@@ -99,7 +99,7 @@ def send_reminder():
     month_key = f"{today.year}-{today.month:02d}"
     url = f"{BASE_URL}/schedule/{month_key}"
     message = (
-        f"⚠️ 締め切りは明日なので投票してない人は忘れんうちによろしく！\n\n"
+        f"⚠️ 締め切りは明日なので投票してない人はよろしく！\n\n"
         f"📝 回答はこちら👇\n{url}"
     )
     send_line_message(message)
@@ -138,14 +138,14 @@ def vote(month_key):
     body = request.get_json()
     name = body.get('name', '').strip()
     votes = body.get('votes', {})
-    comment = body.get('comment', '').strip()
+    notes = body.get('notes', {})
 
     if not name:
         return jsonify({'error': 'Name required'}), 400
 
     data[month_key]['votes'][name] = {
         'votes': votes,
-        'comment': comment,
+        'notes': notes,
         'updated_at': datetime.now().isoformat()
     }
     save_data(data)
@@ -188,14 +188,6 @@ def test_reminder_message():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    body = request.get_json()
-    print(f"Webhook received: {json.dumps(body, ensure_ascii=False)}")
-    if body and 'events' in body:
-        for event in body['events']:
-            source = event.get('source', {})
-            group_id = source.get('groupId')
-            if group_id:
-                print(f"GROUP ID: {group_id}")
     return jsonify({'ok': True})
 
 if __name__ == '__main__':
