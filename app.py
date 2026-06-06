@@ -196,7 +196,7 @@ def webhook():
                 group_id = source.get('groupId')
                 if group_id:
                     print(f"GROUP ID: {group_id}")
-    return jsonify({'ok': True})
+        return jsonify({'ok': True})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
