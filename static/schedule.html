@@ -160,6 +160,36 @@
   .comment-item { font-size: 0.8rem; color: var(--sub); margin-bottom: 4px; }
   .comment-item strong { color: var(--text); }
 
+  /* 備考ポップアップ */
+  .note-chip {
+    font-size: 0.7rem; padding: 2px 7px; border-radius: 20px;
+    background: #7c3aed33; color: #a78bfa; border: 1px solid #7c3aed55;
+    cursor: pointer; margin-left: 4px; transition: background 0.15s;
+    vertical-align: middle;
+  }
+  .note-chip:hover { background: #7c3aed55; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; max-width: 320px; width: 90%;
+    animation: popIn 0.2s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-name { font-weight: 900; font-size: 1rem; margin-bottom: 8px; }
+  .modal-note { font-size: 0.9rem; color: var(--sub); line-height: 1.6; }
+  .modal-close {
+    margin-top: 16px; width: 100%; padding: 10px;
+    background: var(--border); border: none; border-radius: 8px;
+    color: var(--text); font-family: inherit; font-weight: 700;
+    cursor: pointer; font-size: 0.9rem;
+  }
+
   .loading { text-align: center; padding: 60px 20px; color: var(--sub); }
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
@@ -190,6 +220,14 @@
 
 <div id="summary-section" class="section">
   <div class="loading" id="summary-loading">読み込み中...</div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-name" id="modal-name"></div>
+    <div class="modal-note" id="modal-note"></div>
+    <button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('show')">閉じる</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -242,11 +280,10 @@ async function loadSchedule() {
   renderVoteForm();
 }
 
-function renderVoteForm(previousVotes = {}, previousComment = '') {
+function renderVoteForm(previousVotes = {}, previousComment = {}) {
   // 前回の回答があればそちらを優先
   if (Object.keys(previousVotes).length > 0) {
     myVotes = { ...previousVotes };
-    // 未回答日はデフォルト×
     scheduleData.days.forEach(dateStr => {
       if (!myVotes[dateStr]) myVotes[dateStr] = 'ng';
     });
@@ -263,28 +300,37 @@ function renderVoteForm(previousVotes = {}, previousComment = '') {
   scheduleData.days.forEach(dateStr => {
     const f = formatDate(dateStr);
     const cur = myVotes[dateStr] || 'ng';
+    const prevNote = previousComment[dateStr] || '';
     html += `
-      <div class="date-card">
-        <div class="date-info">
-          <div class="date-main">
-            ${f.full}
-            ${f.showHolidayBadge ? '<span class="holiday-badge">祝</span>' : ''}
+      <div class="date-card" style="flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px;width:100%">
+          <div class="date-info">
+            <div class="date-main">
+              ${f.full}
+              ${f.showHolidayBadge ? '<span class="holiday-badge">祝</span>' : ''}
+            </div>
+          </div>
+          <div class="vote-btns">
+            <button class="vote-btn ${cur==='ok'?'selected-ok':''}" data-date="${dateStr}" data-val="ok" onclick="selectVote('${dateStr}','ok',this)">⭕</button>
+            <button class="vote-btn ${cur==='maybe'?'selected-maybe':''}" data-date="${dateStr}" data-val="maybe" onclick="selectVote('${dateStr}','maybe',this)">△</button>
+            <button class="vote-btn ${cur==='ng'?'selected-ng':''}" data-date="${dateStr}" data-val="ng" onclick="selectVote('${dateStr}','ng',this)">❌</button>
           </div>
         </div>
-        <div class="vote-btns">
-          <button class="vote-btn ${cur==='ok'?'selected-ok':''}" data-date="${dateStr}" data-val="ok" onclick="selectVote('${dateStr}','ok',this)">⭕</button>
-          <button class="vote-btn ${cur==='maybe'?'selected-maybe':''}" data-date="${dateStr}" data-val="maybe" onclick="selectVote('${dateStr}','maybe',this)">△</button>
-          <button class="vote-btn ${cur==='ng'?'selected-ng':''}" data-date="${dateStr}" data-val="ng" onclick="selectVote('${dateStr}','ng',this)">❌</button>
-        </div>
+        <input
+          type="text"
+          class="date-note"
+          data-date="${dateStr}"
+          placeholder="備考（任意）"
+          value="${prevNote}"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none;"
+          onfocus="this.style.borderColor='var(--green)'"
+          onblur="this.style.borderColor='var(--border)'"
+        />
       </div>
     `;
   });
 
   html += `
-    <div class="comment-area">
-      <label>💬 コメント（任意）</label>
-      <textarea id="my-comment" placeholder="「この日は少し遅れます」など">${previousComment}</textarea>
-    </div>
     <button class="submit-btn" onclick="submitVote()">✅ 回答を送信する</button>
     <div style="height:40px"></div>
   `;
@@ -299,11 +345,9 @@ function onNameInput(name) {
 }
 
 function loadPreviousVote(name) {
-  // 同名の回答済みデータがあれば読み込む
   const prev = scheduleData.votes[name];
   if (prev) {
-    renderVoteForm(prev.votes || {}, prev.comment || '');
-    // 名前フィールドを復元
+    renderVoteForm(prev.votes || {}, prev.notes || {});
     setTimeout(() => {
       const input = document.getElementById('my-name');
       if (input) input.value = name;
@@ -324,11 +368,16 @@ function selectVote(dateStr, val, btn) {
 async function submitVote() {
   const name = document.getElementById('my-name').value.trim();
   if (!name) { showToast('⚠️ 名前を入力してください'); return; }
-  const comment = document.getElementById('my-comment').value.trim();
+  // 各日付の備考を収集
+  const notes = {};
+  document.querySelectorAll('.date-note').forEach(input => {
+    const d = input.dataset.date;
+    if (input.value.trim()) notes[d] = input.value.trim();
+  });
   const res = await fetch(`/api/schedule/${monthKey}/vote`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, votes: myVotes, comment })
+    body: JSON.stringify({ name, votes: myVotes, notes })
   });
   if (res.ok) {
     showToast('✅ 送信完了！ありがとう！');
@@ -362,9 +411,16 @@ function renderSummary() {
     const maybePct = total ? (maybeList.length / total * 100).toFixed(0) : 0;
     const ngPct = total ? (ngList.length / total * 100).toFixed(0) : 0;
 
-    const comments = voters
-      .filter(([, d]) => d.comment && d.votes[dateStr])
-      .map(([name, d]) => `<div class="comment-item"><strong>${name}</strong>：${d.comment}</div>`);
+    // 備考がある人のマップ
+    const noteMap = {};
+    voters.forEach(([name, d]) => {
+      if (d.notes && d.notes[dateStr]) noteMap[name] = d.notes[dateStr];
+    });
+
+    const chipWithNote = (emoji, name) => {
+      const note = noteMap[name];
+      return `<span class="voter-chip ${emoji === '⭕' ? 'ok' : emoji === '△' ? 'maybe' : 'ng'}">${emoji} ${name}${note ? `<span class="note-chip" onclick="showNote('${name.replace(/'/g,"\\'")}','${note.replace(/'/g,"\\'").replace(/\n/g,' ')}')">📝</span>` : ''}</span>`;
+    };
 
     html += `
       <div class="summary-date">
@@ -382,16 +438,27 @@ function renderSummary() {
           <div class="bar-ng" style="width:${ngPct}%"></div>
         </div>
         <div class="voters">
-          ${okList.map(n => `<span class="voter-chip ok">⭕ ${n}</span>`).join('')}
-          ${maybeList.map(n => `<span class="voter-chip maybe">△ ${n}</span>`).join('')}
-          ${ngList.map(n => `<span class="voter-chip ng">❌ ${n}</span>`).join('')}
+          ${okList.map(n => chipWithNote('⭕', n)).join('')}
+          ${maybeList.map(n => chipWithNote('△', n)).join('')}
+          ${ngList.map(n => chipWithNote('❌', n)).join('')}
         </div>
-        ${comments.length ? `<div class="comment-list">${comments.join('')}</div>` : ''}
       </div>
     `;
   });
 
   el.innerHTML = html;
+}
+
+function showNote(name, note) {
+  document.getElementById('modal-name').textContent = name + ' の備考';
+  document.getElementById('modal-note').textContent = note;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('modal-overlay').classList.remove('show');
+  }
 }
 
 loadSchedule();
