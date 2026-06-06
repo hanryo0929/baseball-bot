@@ -221,7 +221,9 @@ function formatDate(dateStr) {
   const m = d.getMonth() + 1;
   const day = d.getDate();
   const dow = DAYS_JP[d.getDay()];
-  return { short: `${m}/${day}(${dow})`, full: `${m}月${day}日（${dow}）`, dow, isHoliday: d.getDay() === 0 };
+  // 祝日バッジは土曜・日曜以外の祝日のみ（土日は曜日で分かるので不要）
+  const isSunOrSat = d.getDay() === 0 || d.getDay() === 6;
+  return { short: `${m}/${day}(${dow})`, full: `${m}月${day}日（${dow}）`, dow, showHolidayBadge: !isSunOrSat };
 }
 
 async function loadSchedule() {
@@ -235,33 +237,44 @@ async function loadSchedule() {
   document.getElementById('header-title').textContent = title;
   document.getElementById('header-sub').textContent = `土日祝 ${scheduleData.days.length}日間`;
   document.title = title;
+  // デフォルトで全日程を×にセット
+  scheduleData.days.forEach(dateStr => { myVotes[dateStr] = 'ng'; });
   renderVoteForm();
 }
 
-function renderVoteForm() {
+function renderVoteForm(previousVotes = {}, previousComment = '') {
+  // 前回の回答があればそちらを優先
+  if (Object.keys(previousVotes).length > 0) {
+    myVotes = { ...previousVotes };
+    // 未回答日はデフォルト×
+    scheduleData.days.forEach(dateStr => {
+      if (!myVotes[dateStr]) myVotes[dateStr] = 'ng';
+    });
+  }
+
   const el = document.getElementById('vote-section');
   let html = `
     <div class="name-input">
-      <label>👤 あなたの名前</label>
-      <input type="text" id="my-name" placeholder="例：田中" />
+      <label>👤 あなたの名前（回答済みの場合は同じ名前で上書きできます）</label>
+      <input type="text" id="my-name" placeholder="例：田中" oninput="onNameInput(this.value)" />
     </div>
   `;
 
   scheduleData.days.forEach(dateStr => {
     const f = formatDate(dateStr);
-    const isHoliday = f.isHoliday;
+    const cur = myVotes[dateStr] || 'ng';
     html += `
       <div class="date-card">
         <div class="date-info">
           <div class="date-main">
             ${f.full}
-            ${isHoliday ? '<span class="holiday-badge">祝</span>' : ''}
+            ${f.showHolidayBadge ? '<span class="holiday-badge">祝</span>' : ''}
           </div>
         </div>
         <div class="vote-btns">
-          <button class="vote-btn" data-date="${dateStr}" data-val="ok" onclick="selectVote('${dateStr}','ok',this)">⭕</button>
-          <button class="vote-btn" data-date="${dateStr}" data-val="maybe" onclick="selectVote('${dateStr}','maybe',this)">△</button>
-          <button class="vote-btn" data-date="${dateStr}" data-val="ng" onclick="selectVote('${dateStr}','ng',this)">❌</button>
+          <button class="vote-btn ${cur==='ok'?'selected-ok':''}" data-date="${dateStr}" data-val="ok" onclick="selectVote('${dateStr}','ok',this)">⭕</button>
+          <button class="vote-btn ${cur==='maybe'?'selected-maybe':''}" data-date="${dateStr}" data-val="maybe" onclick="selectVote('${dateStr}','maybe',this)">△</button>
+          <button class="vote-btn ${cur==='ng'?'selected-ng':''}" data-date="${dateStr}" data-val="ng" onclick="selectVote('${dateStr}','ng',this)">❌</button>
         </div>
       </div>
     `;
@@ -270,12 +283,33 @@ function renderVoteForm() {
   html += `
     <div class="comment-area">
       <label>💬 コメント（任意）</label>
-      <textarea id="my-comment" placeholder="「この日は少し遅れます」など"></textarea>
+      <textarea id="my-comment" placeholder="「この日は少し遅れます」など">${previousComment}</textarea>
     </div>
     <button class="submit-btn" onclick="submitVote()">✅ 回答を送信する</button>
     <div style="height:40px"></div>
   `;
   el.innerHTML = html;
+}
+
+let nameTimer = null;
+function onNameInput(name) {
+  clearTimeout(nameTimer);
+  if (!name.trim()) return;
+  nameTimer = setTimeout(() => loadPreviousVote(name.trim()), 500);
+}
+
+function loadPreviousVote(name) {
+  // 同名の回答済みデータがあれば読み込む
+  const prev = scheduleData.votes[name];
+  if (prev) {
+    renderVoteForm(prev.votes || {}, prev.comment || '');
+    // 名前フィールドを復元
+    setTimeout(() => {
+      const input = document.getElementById('my-name');
+      if (input) input.value = name;
+    }, 0);
+    showToast('📋 前回の回答を読み込みました');
+  }
 }
 
 function selectVote(dateStr, val, btn) {
@@ -290,7 +324,6 @@ function selectVote(dateStr, val, btn) {
 async function submitVote() {
   const name = document.getElementById('my-name').value.trim();
   if (!name) { showToast('⚠️ 名前を入力してください'); return; }
-  if (Object.keys(myVotes).length === 0) { showToast('⚠️ 少なくとも1日を選んでください'); return; }
   const comment = document.getElementById('my-comment').value.trim();
   const res = await fetch(`/api/schedule/${monthKey}/vote`, {
     method: 'POST',
